@@ -1,5 +1,8 @@
 package com.slashphone.launcher.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -23,10 +27,23 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.slashphone.launcher.command.CommandResult
+import com.slashphone.launcher.ui.results.CommandResultSheet
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    onNavigate: (String) -> Unit = {},
+    viewModel: HomeViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsState()
+    val navEvent by viewModel.navigationEvent.collectAsState()
+
+    LaunchedEffect(navEvent) {
+        navEvent?.let { route ->
+            onNavigate(route)
+            viewModel.onNavigationHandled()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -40,7 +57,6 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
                 .fillMaxWidth()
                 .padding(horizontal = 32.dp),
         ) {
-            // Context line
             Text(
                 text = state.contextLine,
                 style = MaterialTheme.typography.bodyMedium,
@@ -48,7 +64,6 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Command bar
             BasicTextField(
                 value = state.commandInput,
                 onValueChange = viewModel::onCommandInputChanged,
@@ -81,6 +96,20 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
                     }
                 },
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            AnimatedVisibility(
+                visible = state.lastResult != null &&
+                    state.lastResult !is CommandResult.Launched &&
+                    state.lastResult !is CommandResult.Navigate,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                state.lastResult?.let { result ->
+                    CommandResultSheet(result)
+                }
+            }
         }
     }
 }
