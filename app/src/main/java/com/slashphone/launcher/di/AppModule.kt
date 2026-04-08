@@ -5,6 +5,10 @@ import com.slashphone.launcher.command.CommandParser
 import com.slashphone.launcher.command.CommandRegistry
 import com.slashphone.launcher.command.IntentLauncher
 import com.slashphone.launcher.command.builtin.*
+import com.slashphone.launcher.data.SlashDatabase
+import com.slashphone.launcher.data.dao.WhitelistDao
+import com.slashphone.launcher.data.dao.NotificationDao
+import com.slashphone.launcher.data.dao.UserPrefsDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -63,4 +67,19 @@ object AppModule {
 
         return registry
     }
+
+    @Provides
+    @Singleton
+    fun provideDatabase(@ApplicationContext context: Context): SlashDatabase {
+        return SlashDatabase.create(context)
+    }
+
+    @Provides
+    fun provideWhitelistDao(db: SlashDatabase): WhitelistDao = db.whitelistDao()
+
+    @Provides
+    fun provideNotificationDao(db: SlashDatabase): NotificationDao = db.notificationDao()
+
+    @Provides
+    fun provideUserPrefsDao(db: SlashDatabase): UserPrefsDao = db.userPrefsDao()
 }
