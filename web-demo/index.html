@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Slash</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .phone-frame {
+            width: 390px;
+            height: 844px;
+            background: #000;
+            border-radius: 48px;
+            border: 3px solid #1a1a1a;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 80px rgba(255, 255, 255, 0.03);
+        }
+
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 34px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            z-index: 10;
+        }
+
+        .status-bar {
+            position: absolute;
+            top: 12px;
+            left: 36px;
+            right: 36px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.5);
+            z-index: 5;
+        }
+
+        .home-indicator {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 134px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+
+        .content {
+            width: 100%;
+            padding: 0 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .context-line {
+            font-size: 13px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.45);
+            margin-bottom: 16px;
+            text-align: center;
+            min-height: 20px;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .context-line.updating {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+
+        .command-bar-wrapper {
+            width: 100%;
+            position: relative;
+        }
+
+        .command-bar {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 17px;
+            font-weight: 400;
+            color: #fff;
+            outline: none;
+            caret-color: #fff;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .command-bar::placeholder {
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        .command-bar:focus {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .result-area {
+            width: 100%;
+            margin-top: 24px;
+            max-height: 360px;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .result-area::-webkit-scrollbar {
+            display: none;
+        }
+
+        .result-text {
+            font-size: 15px;
+            font-weight: 400;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.85);
+            white-space: pre-line;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .result-error {
+            color: #ff6b6b;
+        }
+
+        .result-muted {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .result-notfound {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .suggestions {
+            margin-top: 8px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .inbox-item {
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .inbox-item:last-child {
+            border-bottom: none;
+        }
+
+        .inbox-app {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .inbox-title {
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.9);
+            margin-top: 2px;
+        }
+
+        .inbox-content {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 2px;
+        }
+
+        .inbox-empty {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 14px;
+        }
+
+        /* Onboarding */
+        .onboarding {
+            text-align: center;
+            animation: fadeIn 0.6s ease;
+        }
+
+        .onboarding .slash-logo {
+            font-size: 64px;
+            font-weight: 300;
+            color: #fff;
+            margin-bottom: 32px;
+        }
+
+        .onboarding h2 {
+            font-size: 17px;
+            font-weight: 400;
+            margin-bottom: 8px;
+        }
+
+        .onboarding p {
+            font-size: 13px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.5);
+            line-height: 1.6;
+            max-width: 280px;
+            margin: 0 auto;
+        }
+
+        .onboarding .cta {
+            margin-top: 48px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 400;
+            color: #fff;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 12px 24px;
+            transition: opacity 0.2s;
+        }
+
+        .onboarding .cta:hover {
+            opacity: 0.7;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mobile fullscreen mode */
+        @media (max-width: 500px) {
+            .phone-frame {
+                width: 100vw;
+                height: 100vh;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+            }
+            .notch, .status-bar, .home-indicator {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="phone-frame">
+    <div class="notch"></div>
+    <div class="status-bar">
+        <span id="status-time"></span>
+        <span></span>
+    </div>
+
+    <!-- Onboarding -->
+    <div class="content onboarding" id="onboarding">
+        <div class="slash-logo">/</div>
+        <h2>Your phone should work for you.</h2>
+        <p>Slash replaces your home screen with a single command bar. No icons. No notifications. Just you, deciding what you need.</p>
+        <button class="cta" onclick="startSlash()">let's go /</button>
+    </div>
+
+    <!-- Home Screen -->
+    <div class="content hidden" id="home">
+        <div class="context-line" id="context-line"></div>
+        <div class="command-bar-wrapper">
+            <input
+                type="text"
+                class="command-bar"
+                id="command-bar"
+                placeholder="/"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+            >
+        </div>
+        <div class="result-area" id="result-area"></div>
+    </div>
+
+    <div class="home-indicator"></div>
+</div>
+
+<script>
+// State
+const state = {
+    inbox: [
+        { app: 'Twitter', title: 'Trending near you', content: '10 new trends in Minneapolis', time: '2:34 PM' },
+        { app: 'Gmail', title: 'Your weekly digest', content: 'Highlights from subscriptions you follow', time: '1:15 PM' },
+        { app: 'Instagram', title: 'New followers', content: '3 people followed you today', time: '11:42 AM' },
+        { app: 'Slack', title: '#random', content: 'Did anyone see the game last night?', time: '10:20 AM' },
+        { app: 'News', title: 'Breaking', content: 'Market update: S&P 500 reaches new high', time: '9:05 AM' },
+    ],
+    people: [
+        { name: 'Dad', lastContact: '3 weeks ago' },
+        { name: 'Alex', lastContact: '5 days ago' },
+        { name: 'Sarah', lastContact: '2 days ago' },
+        { name: 'Mom', lastContact: 'yesterday' },
+        { name: 'Jake', lastContact: 'today' },
+    ],
+    calendar: [
+        { time: '9:00 AM', title: 'Team standup' },
+        { time: '11:30 AM', title: 'Design review — Slash v0.2' },
+        { time: '2:00 PM', title: 'Investor call' },
+        { time: '5:30 PM', title: 'Gym' },
+    ],
+    tomorrowCal: [
+        { time: '10:00 AM', title: 'Product sync' },
+        { time: '1:00 PM', title: 'Lunch with Marcus' },
+    ],
+};
+
+// Context line logic
+function getContextLine() {
+    const now = new Date();
+    const hour = now.getHours();
+    const events = state.calendar.length;
+
+    if (hour >= 5 && hour < 9) {
+        return `${events} things today. The big one is the investor call.`;
+    } else if (hour >= 9 && hour < 12) {
+        return `${formatTime(now)} — heads down morning`;
+    } else if (hour >= 12 && hour < 14) {
+        return `${formatTime(now)} — afternoon ahead`;
+    } else if (hour >= 14 && hour < 18) {
+        return `${formatTime(now)} — ${events - 2} things left today`;
+    } else if (hour >= 18 && hour < 22) {
+        return `${formatTime(now)} — evening. You earned it.`;
+    } else if (hour >= 22) {
+        return `${formatTime(now)} — wind down`;
+    } else {
+        return `${formatTime(now)} — you should be sleeping`;
+    }
+}
+
+function formatTime(date) {
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+// Commands
+const commands = {
+    today: () => {
+        if (state.calendar.length === 0) return text('Nothing on the calendar today. It\'s yours.');
+        return text(state.calendar.map(e => `${e.time}  ${e.title}`).join('\n'));
+    },
+    tomorrow: () => {
+        if (state.tomorrowCal.length === 0) return text('Tomorrow is clear.');
+        return text(state.tomorrowCal.map(e => `${e.time}  ${e.title}`).join('\n'));
+    },
+    weather: () => text('72\u00B0F  Sunny\nHigh 78\u00B0 / Low 58\u00B0\nNo rain this week.'),
+    people: () => {
+        return text(state.people.map(p => `${p.name} \u2014 ${p.lastContact}`).join('\n'));
+    },
+    inbox: () => {
+        if (state.inbox.length === 0) return { type: 'inbox-empty' };
+        return { type: 'inbox', items: state.inbox };
+    },
+    call: (args) => {
+        if (!args) return error('Who do you want to call? Try /call Mom');
+        return text(`Calling ${args}...`);
+    },
+    text: (args) => {
+        if (!args) return error('Who do you want to text? Try /text Mom');
+        return text(`Opening message to ${args}...`);
+    },
+    go: (args) => {
+        if (!args) return error('Where to? Try /go home or /go 123 Main St');
+        return text(`Navigating to ${args}...`);
+    },
+    near: (args) => {
+        if (!args) return error('What are you looking for? Try /near coffee or /near gas');
+        return text(`Searching for ${args} nearby...`);
+    },
+    search: (args) => {
+        if (!args) return error('What are you looking for?');
+        return text(`Searching: "${args}"...`);
+    },
+    camera: () => text('Opening camera...'),
+    music: () => text('Opening music...'),
+    drift: () => text('You said family was #1 this week.\nYou gave it 4 hours out of 112 waking hours.\n\nCareer got 52 hours. Health got 3.\n\n/ drift is a premium feature.\nThis is what it looks like.'),
+    reflect: () => text('What went well this week?\nWhat do you want to do differently?\n\n/reflect is a premium feature.\nYour weekly check-in starts here.'),
+    route: () => text('You\'re here: building Slash.\nYou said you\'d ship the beta by June.\n\n42 days remain.\n\n/route is a premium feature.\nYour life GPS starts here.'),
+    memory: () => text('Last drive with Dad: March 15, Highway 61 North.\n45 minutes. You talked about the cabin.\n\n/memory is a premium feature.\nYour searchable life starts here.'),
+    help: () => text('/today  — your calendar\n/tomorrow  — what\'s ahead\n/weather  — conditions\n/people  — inner circle\n/inbox  — caught notifications\n/call [name]  — call someone\n/text [name]  — text someone\n/go [place]  — directions\n/near [thing]  — nearby\n/search [query]  — web search\n/camera  — camera\n/music  — music\n/drift  — alignment report\n/route  — life GPS\n/reflect  — weekly reflection\n/memory  — life history'),
+};
+
+const knownCommands = Object.keys(commands);
+
+function text(content) { return { type: 'text', content }; }
+function error(message) { return { type: 'error', content: message }; }
+
+// Fuzzy match
+function levenshtein(a, b) {
+    const dp = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+    for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+    for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a[i-1] === b[j-1] ? 0 : 1;
+            dp[i][j] = Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + cost);
+        }
+    }
+    return dp[a.length][b.length];
+}
+
+function fuzzyMatch(input) {
+    const maxDist = Math.max(1, Math.floor(input.length / 3));
+    let best = null, bestDist = Infinity;
+    for (const cmd of knownCommands) {
+        const d = levenshtein(input, cmd);
+        if (d <= maxDist && d < bestDist) {
+            best = cmd;
+            bestDist = d;
+        }
+    }
+    return best;
+}
+
+function parseAndExecute(input) {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+
+    let cmd, args;
+    if (trimmed.startsWith('/')) {
+        const withoutSlash = trimmed.slice(1);
+        const spaceIdx = withoutSlash.indexOf(' ');
+        if (spaceIdx === -1) {
+            cmd = withoutSlash.toLowerCase();
+            args = '';
+        } else {
+            cmd = withoutSlash.slice(0, spaceIdx).toLowerCase();
+            args = withoutSlash.slice(spaceIdx + 1).trim();
+        }
+    } else {
+        cmd = 'search';
+        args = trimmed;
+    }
+
+    // Direct match
+    if (commands[cmd]) return commands[cmd](args);
+
+    // Fuzzy match
+    const fuzzy = fuzzyMatch(cmd);
+    if (fuzzy) return commands[fuzzy](args);
+
+    // Not found
+    const suggestions = knownCommands.filter(c => c.startsWith(cmd.slice(0, 2))).slice(0, 3);
+    return { type: 'notfound', input: cmd, suggestions };
+}
+
+// Render
+function renderResult(result) {
+    const area = document.getElementById('result-area');
+    area.innerHTML = '';
+
+    if (!result) return;
+
+    if (result.type === 'text') {
+        area.innerHTML = `<div class="result-text">${escapeHtml(result.content)}</div>`;
+    } else if (result.type === 'error') {
+        area.innerHTML = `<div class="result-text result-error">${escapeHtml(result.content)}</div>`;
+    } else if (result.type === 'notfound') {
+        let html = `<div class="result-text result-notfound">Unknown command: /${escapeHtml(result.input)}</div>`;
+        if (result.suggestions.length > 0) {
+            html += `<div class="suggestions">Try: ${result.suggestions.map(s => '/' + s).join(', ')}</div>`;
+        }
+        area.innerHTML = html;
+    } else if (result.type === 'inbox') {
+        area.innerHTML = result.items.map(item => `
+            <div class="inbox-item">
+                <div class="inbox-app">${escapeHtml(item.app)} \u00b7 ${escapeHtml(item.time)}</div>
+                <div class="inbox-title">${escapeHtml(item.title)}</div>
+                <div class="inbox-content">${escapeHtml(item.content)}</div>
+            </div>
+        `).join('');
+    } else if (result.type === 'inbox-empty') {
+        area.innerHTML = `<div class="inbox-empty">Nothing here. Silence is golden.</div>`;
+    }
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Event handling
+const commandBar = document.getElementById('command-bar');
+
+commandBar.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const input = commandBar.value;
+        const result = parseAndExecute(input);
+        renderResult(result);
+        commandBar.value = '';
+    }
+});
+
+// Context line updates
+function updateContextLine() {
+    const el = document.getElementById('context-line');
+    el.classList.add('updating');
+    setTimeout(() => {
+        el.textContent = getContextLine();
+        el.classList.remove('updating');
+    }, 300);
+}
+
+// Status bar time
+function updateStatusTime() {
+    document.getElementById('status-time').textContent = formatTime(new Date());
+}
+
+// Onboarding
+function startSlash() {
+    document.getElementById('onboarding').classList.add('hidden');
+    document.getElementById('home').classList.remove('hidden');
+    updateContextLine();
+    updateStatusTime();
+    commandBar.focus();
+
+    setInterval(updateContextLine, 60000);
+    setInterval(updateStatusTime, 30000);
+}
+
+// Init
+updateStatusTime();
+</script>
+
+</body>
+</html>
