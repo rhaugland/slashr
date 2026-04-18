@@ -444,6 +444,89 @@ function fuzzyMatch(input) {
     return best;
 }
 
+// Intent mapping — natural phrases → commands
+const intents = [
+    // Camera
+    { patterns: ['take a picture', 'take a photo', 'take a pic', 'take photo', 'take picture', 'open camera', 'selfie', 'photograph', 'snap a pic', 'photo'], cmd: 'camera', args: '' },
+    // Music
+    { patterns: ['play music', 'open music', 'play a song', 'play some music', 'listen to music', 'put on music', 'music player', 'songs', 'playlist'], cmd: 'music', args: '' },
+    // Weather
+    { patterns: ['how\'s the weather', 'what\'s the weather', 'is it going to rain', 'is it raining', 'temperature', 'forecast', 'how hot is it', 'how cold is it', 'do i need a jacket', 'do i need an umbrella'], cmd: 'weather', args: '' },
+    // Today
+    { patterns: ['what\'s on my calendar', 'what do i have today', 'what\'s today look like', 'my schedule', 'my calendar', 'what\'s happening today', 'am i busy today', 'any meetings', 'what\'s on today', 'schedule today', 'agenda'], cmd: 'today', args: '' },
+    // Tomorrow
+    { patterns: ['what\'s tomorrow', 'what do i have tomorrow', 'tomorrow\'s schedule', 'anything tomorrow', 'am i busy tomorrow', 'plans tomorrow'], cmd: 'tomorrow', args: '' },
+    // People
+    { patterns: ['who should i call', 'who haven\'t i talked to', 'who am i neglecting', 'my people', 'inner circle', 'who should i reach out to', 'who have i been ignoring'], cmd: 'people', args: '' },
+    // Inbox
+    { patterns: ['any notifications', 'what did i miss', 'missed notifications', 'show notifications', 'what\'s in my inbox', 'messages', 'did anyone message me', 'anything new'], cmd: 'inbox', args: '' },
+    // Call (with name extraction)
+    { patterns: ['call', 'phone', 'ring', 'dial', 'give .+ a call', 'call .+'], cmd: 'call', extract: true },
+    // Text (with name extraction)
+    { patterns: ['text', 'message', 'send a text', 'send a message', 'write to', 'msg'], cmd: 'text', extract: true },
+    // Navigation (with destination extraction)
+    { patterns: ['take me to', 'navigate to', 'directions to', 'how do i get to', 'drive to', 'get me to', 'go to'], cmd: 'go', extract: true },
+    // Near
+    { patterns: ['find .+ nearby', 'where\'s the nearest', 'closest', 'any .+ around here', 'find me a', 'where can i find', 'is there a .+ near'], cmd: 'near', extract: true },
+    // Drift
+    { patterns: ['how am i doing', 'am i on track', 'alignment', 'life check', 'how\'s my week', 'week in review', 'how did i spend my time'], cmd: 'drift', args: '' },
+    // Help
+    { patterns: ['what can you do', 'what can i do', 'what are the commands', 'how does this work', 'help me', 'options', 'what do you do'], cmd: 'help', args: '' },
+];
+
+function matchIntent(input) {
+    const lower = input.toLowerCase();
+
+    for (const intent of intents) {
+        for (const pattern of intent.patterns) {
+            // Regex patterns (contain .+)
+            if (pattern.includes('.+')) {
+                const regex = new RegExp(pattern, 'i');
+                if (regex.test(lower)) {
+                    if (intent.extract) {
+                        const args = extractArgs(lower, intent.cmd);
+                        return { cmd: intent.cmd, args };
+                    }
+                    return { cmd: intent.cmd, args: intent.args || '' };
+                }
+            }
+            // Exact substring match
+            else if (lower.includes(pattern)) {
+                if (intent.extract) {
+                    const args = extractArgs(lower, intent.cmd);
+                    return { cmd: intent.cmd, args };
+                }
+                return { cmd: intent.cmd, args: intent.args || '' };
+            }
+        }
+    }
+    return null;
+}
+
+function extractArgs(input, cmd) {
+    // Try to pull out the meaningful noun/name from natural language
+    const removals = [
+        'can you', 'could you', 'please', 'i want to', 'i need to', 'i\'d like to',
+        'help me', 'let me', 'i wanna', 'go ahead and', 'just',
+        'call', 'phone', 'ring', 'dial', 'give', 'a call',
+        'text', 'message', 'send a text to', 'send a message to', 'send', 'write to', 'msg',
+        'take me to', 'navigate to', 'directions to', 'how do i get to', 'drive to', 'get me to', 'go to',
+        'find', 'nearby', 'near me', 'around here', 'nearest', 'closest',
+        'where\'s the', 'where is the', 'where can i find', 'is there a', 'find me a',
+    ];
+
+    let cleaned = input.toLowerCase();
+    for (const phrase of removals) {
+        cleaned = cleaned.replace(new RegExp(phrase, 'gi'), '');
+    }
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+    // Remove trailing punctuation
+    cleaned = cleaned.replace(/[?.!]+$/, '').trim();
+
+    return cleaned;
+}
+
 function parseAndExecute(input) {
     const trimmed = input.trim();
     if (!trimmed) return null;
@@ -451,6 +534,7 @@ function parseAndExecute(input) {
     // Strip leading / if present (still works, just not required)
     const clean = trimmed.startsWith('/') ? trimmed.slice(1) : trimmed;
 
+    // 1. Try direct command match (single word or "command args")
     const spaceIdx = clean.indexOf(' ');
     let cmd, args;
     if (spaceIdx === -1) {
@@ -461,14 +545,17 @@ function parseAndExecute(input) {
         args = clean.slice(spaceIdx + 1).trim();
     }
 
-    // Direct match
     if (commands[cmd]) return commands[cmd](args);
 
-    // Fuzzy match against known commands
+    // 2. Fuzzy match against known commands
     const fuzzy = fuzzyMatch(cmd);
-    if (fuzzy) return commands[fuzzy](args);
+    if (fuzzy && !args) return commands[fuzzy](args);
 
-    // No match — treat entire input as a search
+    // 3. Try intent matching (natural language)
+    const intent = matchIntent(trimmed);
+    if (intent) return commands[intent.cmd](intent.args);
+
+    // 4. Fallback — treat as search
     return commands.search(trimmed);
 }
 
