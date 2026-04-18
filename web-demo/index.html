@@ -134,6 +134,7 @@
             max-height: 360px;
             overflow-y: auto;
             scrollbar-width: none;
+            transition: opacity 0.15s ease;
         }
 
         .result-area::-webkit-scrollbar {
@@ -283,8 +284,8 @@
     <div class="content onboarding" id="onboarding">
         <div class="slash-logo">/</div>
         <h2>Your phone should work for you.</h2>
-        <p>Slash replaces your home screen with a single command bar. No icons. No notifications. Just you, deciding what you need.</p>
-        <button class="cta" onclick="startSlash()">let's go /</button>
+        <p>Slash replaces your home screen with a single bar. No icons. No notifications. Just say what you need.</p>
+        <button class="cta" onclick="startSlash()">let's go</button>
     </div>
 
     <!-- Home Screen -->
@@ -295,7 +296,7 @@
                 type="text"
                 class="command-bar"
                 id="command-bar"
-                placeholder="/"
+                placeholder="what do you need?"
                 autocomplete="off"
                 autocorrect="off"
                 autocapitalize="off"
@@ -383,19 +384,19 @@ const commands = {
         return { type: 'inbox', items: state.inbox };
     },
     call: (args) => {
-        if (!args) return error('Who do you want to call? Try /call Mom');
+        if (!args) return error('Who do you want to call? Try: call Mom');
         return text(`Calling ${args}...`);
     },
     text: (args) => {
-        if (!args) return error('Who do you want to text? Try /text Mom');
+        if (!args) return error('Who do you want to text? Try: text Mom');
         return text(`Opening message to ${args}...`);
     },
     go: (args) => {
-        if (!args) return error('Where to? Try /go home or /go 123 Main St');
+        if (!args) return error('Where to? Try: go home');
         return text(`Navigating to ${args}...`);
     },
     near: (args) => {
-        if (!args) return error('What are you looking for? Try /near coffee or /near gas');
+        if (!args) return error('What are you looking for? Try: near coffee');
         return text(`Searching for ${args} nearby...`);
     },
     search: (args) => {
@@ -404,11 +405,11 @@ const commands = {
     },
     camera: () => text('Opening camera...'),
     music: () => text('Opening music...'),
-    drift: () => text('You said family was #1 this week.\nYou gave it 4 hours out of 112 waking hours.\n\nCareer got 52 hours. Health got 3.\n\n/ drift is a premium feature.\nThis is what it looks like.'),
-    reflect: () => text('What went well this week?\nWhat do you want to do differently?\n\n/reflect is a premium feature.\nYour weekly check-in starts here.'),
-    route: () => text('You\'re here: building Slash.\nYou said you\'d ship the beta by June.\n\n42 days remain.\n\n/route is a premium feature.\nYour life GPS starts here.'),
-    memory: () => text('Last drive with Dad: March 15, Highway 61 North.\n45 minutes. You talked about the cabin.\n\n/memory is a premium feature.\nYour searchable life starts here.'),
-    help: () => text('/today  — your calendar\n/tomorrow  — what\'s ahead\n/weather  — conditions\n/people  — inner circle\n/inbox  — caught notifications\n/call [name]  — call someone\n/text [name]  — text someone\n/go [place]  — directions\n/near [thing]  — nearby\n/search [query]  — web search\n/camera  — camera\n/music  — music\n/drift  — alignment report\n/route  — life GPS\n/reflect  — weekly reflection\n/memory  — life history'),
+    drift: () => text('You said family was #1 this week.\nYou gave it 4 hours out of 112 waking hours.\n\nCareer got 52 hours. Health got 3.\n\ndrift is a premium feature.\nThis is what it looks like.'),
+    reflect: () => text('What went well this week?\nWhat do you want to do differently?\n\nreflect is a premium feature.\nYour weekly check-in starts here.'),
+    route: () => text('You\'re here: building Slash.\nYou said you\'d ship the beta by June.\n\n42 days remain.\n\nroute is a premium feature.\nYour life GPS starts here.'),
+    memory: () => text('Last drive with Dad: March 15, Highway 61 North.\n45 minutes. You talked about the cabin.\n\nmemory is a premium feature.\nYour searchable life starts here.'),
+    help: () => text('today  — your calendar\ntomorrow  — what\'s ahead\nweather  — conditions\npeople  — inner circle\ninbox  — caught notifications\ncall [name]  — call someone\ntext [name]  — text someone\ngo [place]  — directions\nnear [thing]  — nearby\ncamera  — camera\nmusic  — music\ndrift  — alignment report\nroute  — life GPS\nreflect  — weekly reflection\nmemory  — life history\n\nOr just type anything to search.'),
 };
 
 const knownCommands = Object.keys(commands);
@@ -447,32 +448,28 @@ function parseAndExecute(input) {
     const trimmed = input.trim();
     if (!trimmed) return null;
 
+    // Strip leading / if present (still works, just not required)
+    const clean = trimmed.startsWith('/') ? trimmed.slice(1) : trimmed;
+
+    const spaceIdx = clean.indexOf(' ');
     let cmd, args;
-    if (trimmed.startsWith('/')) {
-        const withoutSlash = trimmed.slice(1);
-        const spaceIdx = withoutSlash.indexOf(' ');
-        if (spaceIdx === -1) {
-            cmd = withoutSlash.toLowerCase();
-            args = '';
-        } else {
-            cmd = withoutSlash.slice(0, spaceIdx).toLowerCase();
-            args = withoutSlash.slice(spaceIdx + 1).trim();
-        }
+    if (spaceIdx === -1) {
+        cmd = clean.toLowerCase();
+        args = '';
     } else {
-        cmd = 'search';
-        args = trimmed;
+        cmd = clean.slice(0, spaceIdx).toLowerCase();
+        args = clean.slice(spaceIdx + 1).trim();
     }
 
     // Direct match
     if (commands[cmd]) return commands[cmd](args);
 
-    // Fuzzy match
+    // Fuzzy match against known commands
     const fuzzy = fuzzyMatch(cmd);
     if (fuzzy) return commands[fuzzy](args);
 
-    // Not found
-    const suggestions = knownCommands.filter(c => c.startsWith(cmd.slice(0, 2))).slice(0, 3);
-    return { type: 'notfound', input: cmd, suggestions };
+    // No match — treat entire input as a search
+    return commands.search(trimmed);
 }
 
 // Render
@@ -487,9 +484,9 @@ function renderResult(result) {
     } else if (result.type === 'error') {
         area.innerHTML = `<div class="result-text result-error">${escapeHtml(result.content)}</div>`;
     } else if (result.type === 'notfound') {
-        let html = `<div class="result-text result-notfound">Unknown command: /${escapeHtml(result.input)}</div>`;
+        let html = `<div class="result-text result-notfound">Not sure what "${escapeHtml(result.input)}" means.</div>`;
         if (result.suggestions.length > 0) {
-            html += `<div class="suggestions">Try: ${result.suggestions.map(s => '/' + s).join(', ')}</div>`;
+            html += `<div class="suggestions">Try: ${result.suggestions.join(', ')}</div>`;
         }
         area.innerHTML = html;
     } else if (result.type === 'inbox') {
@@ -519,6 +516,16 @@ commandBar.addEventListener('keydown', (e) => {
         const result = parseAndExecute(input);
         renderResult(result);
         commandBar.value = '';
+    } else {
+        // Any new keystroke clears previous result — results replace, never stack
+        const area = document.getElementById('result-area');
+        if (area.innerHTML) {
+            area.style.opacity = '0';
+            setTimeout(() => {
+                area.innerHTML = '';
+                area.style.opacity = '1';
+            }, 150);
+        }
     }
 });
 
